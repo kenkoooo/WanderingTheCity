@@ -16,15 +16,6 @@ class Actions {
 
   public static int walk(int[] shift) {
     requests.add(new int[]{shift[0], shift[1], 0});
-    return process();
-  }
-
-  public static int guess(int[] coord) {
-    requests.add(new int[]{coord[0], coord[1], 1});
-    return process();
-  }
-
-  private static int process() {
     try {
       if (responses.take().length == 0) return -1;
       return 0;
@@ -33,4 +24,16 @@ class Actions {
     }
     return -1;
   }
+
+  public static int guess(int[] coord) {
+    requests.add(new int[]{coord[0], coord[1], 1});
+    try {
+      if (responses.take()[0].equals("1")) return 1;
+      return 0;
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+    return -1;
+  }
+
 }

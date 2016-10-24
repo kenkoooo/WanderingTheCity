@@ -7,13 +7,20 @@ import java.io.*;
 import java.security.SecureRandom;
 
 public class WanderingTheCityVis {
-  private static final int minSz = 50, maxSz = 500;
-  private static final double minProb = 0.05, maxProb = 0.5;
-  private static final double minChangeProb = 0.05, maxChangeProb = 0.2;
+  private static final int minSz = 50;
+  private static final int maxSz = 500;
+
+  private static final double minProb = 0.05;
+  private static final double maxProb = 0.5;
+
+  private static final double minChangeProb = 0.05;
+  private static final double maxChangeProb = 0.2;
+
+  private static final double mixProb = 0.01;
 
   private int S;
-  private char[][] cityMapOld;
-  private char[][] cityMap;
+  private char[][] playerViewMap;
+  private char[][] realMap;
   private int[] startPos;
   // costs for 1 unit of walk and 1 call of look/guess
   private int W, L, G;
@@ -24,19 +31,18 @@ public class WanderingTheCityVis {
   // limits for # of calls for each function
   private int maxLook, maxGuess, maxTotalWalk;
 
-  private String errmes;
+  private String errMessage;
   private volatile int[] curPos;
-  private boolean ok;                     // indicates that all actions were valid
-  // -----------------------------------------
+  private boolean ok;
+
   private void generate(long seed) {
     try {
       // generate test case
-      SecureRandom r1 = SecureRandom.getInstance("SHA1PRNG");
-      r1.setSeed(seed);
-      S = r1.nextInt(maxSz - minSz + 1) + minSz;
-      double blackProb = r1.nextDouble() * (maxProb - minProb) + minProb;
-      double changeProb = r1.nextDouble() * (maxChangeProb - minChangeProb) + minChangeProb;
-      double mixProb = 0.01;
+      SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
+      random.setSeed(seed);
+      S = random.nextInt(maxSz - minSz + 1) + minSz;
+      double blackProb = random.nextDouble() * (maxProb - minProb) + minProb;
+      double changeProb = random.nextDouble() * (maxChangeProb - minChangeProb) + minChangeProb;
 
       if (seed <= 3) {
         S = (int) seed * 20;
@@ -48,8 +54,8 @@ public class WanderingTheCityVis {
       }
 
       // generate the map of the city
-      cityMapOld = new char[S][S];
-      cityMap = new char[S][S];
+      playerViewMap = new char[S][S];
+      realMap = new char[S][S];
       int[] reps = new int[S];
       int repCnt = 0;
       for (int i = 2; i <= S; i++) {
@@ -58,60 +64,61 @@ public class WanderingTheCityVis {
         }
       }
 
-      int nB = 0;
+      int numBlack = 0;
       do {
-        // select a repeatable dimension
-        int repeatI = reps[r1.nextInt(repCnt)];
-        int repeatJ = reps[r1.nextInt(repCnt)];
+        // 繰り返し周期を選ぶ
+        int repeatI = reps[random.nextInt(repCnt)];
+        int repeatJ = reps[random.nextInt(repCnt)];
 
-        // generate base city pattern
+        // 小マップを生成する
         for (int i = 0; i < repeatI; i++)
           for (int j = 0; j < repeatJ; j++) {
-            cityMap[i][j] = r1.nextDouble() < blackProb ? 'X' : '.';
+            realMap[i][j] = random.nextDouble() < blackProb ? 'X' : '.';
           }
-        // repeat the pattern
+
+        // 小マップを繰り返させる
         for (int i = 0; i < S; i++)
           for (int j = 0; j < S; j++) {
-            cityMap[i][j] = cityMap[i % repeatI][j % repeatJ];
+            realMap[i][j] = realMap[i % repeatI][j % repeatJ];
           }
-        // randomly update parts of the city
+
+        // 適当にマップのマスを選択し、再度生成する
         for (int i = 0; i < S; i++)
           for (int j = 0; j < S; j++) {
-            if (r1.nextDouble() < mixProb) {
-              cityMap[i][j] = r1.nextDouble() < blackProb ? 'X' : '.';
+            if (random.nextDouble() < mixProb) {
+              realMap[i][j] = random.nextDouble() < blackProb ? 'X' : '.';
             }
-            if (cityMap[i][j] == 'X')
-              nB++;
+            if (realMap[i][j] == 'X') numBlack++;
           }
 
-        // make sure the map has at least 1 black and 1 white building
-      } while (nB == 0 && nB != S * S);
+        // 各色最低でも 1 マス以上は存在するようにする
+      } while (numBlack == 0 && numBlack != S * S);
 
-      // copy the "old" map of the city to pass it to solution
+      // ユーザーに渡すためにコピーする
       for (int i = 0; i < S; i++)
         for (int j = 0; j < S; j++) {
-          cityMapOld[i][j] = cityMap[i][j];
+          playerViewMap[i][j] = realMap[i][j];
         }
 
-      // change the city map to "new"
+      // ランダムに破壊する
       int nChange = 0;
       for (int i = 0; i < S; i++)
         for (int j = 0; j < S; j++) {
-          if (r1.nextDouble() < changeProb) {
-            cityMap[i][j] = (cityMap[i][j] == '.' ? 'X' : '.');
+          if (random.nextDouble() < changeProb) {
+            realMap[i][j] = (realMap[i][j] == '.' ? 'X' : '.');
             ++nChange;
           }
         }
 
-      // generate starting position (position = coordinates of the block to lower right of where you're standing)
+      // 開始場所を決める
       startPos = new int[2];
       for (int i = 0; i < 2; ++i)
-        startPos[i] = r1.nextInt(S);
+        startPos[i] = random.nextInt(S);
 
-      // generate costs
-      W = r1.nextInt(10) + 1;
-      L = r1.nextInt(S / 2) + S / 2;
-      G = r1.nextInt(S * S / 2) + S * S / 2;
+      // 各アクションのコストを設定する
+      W = random.nextInt(10) + 1;
+      L = random.nextInt(S / 2) + S / 2;
+      G = random.nextInt(S * S / 2) + S * S / 2;
 
       // initialize limits
       maxGuess = maxLook = S * S;
@@ -123,7 +130,7 @@ public class WanderingTheCityVis {
         System.out.println("Starting position: (" + startPos[0] + "," + startPos[1] + ")");
         System.out.println("Old map:");
         for (int i = 0; i < S; i++)
-          System.out.println(new String(cityMapOld[i]));
+          System.out.println(new String(playerViewMap[i]));
         System.out.println("Changed cells = " + nChange);
         System.out.println("Cost of walking W = " + W);
         System.out.println("Cost of look() L = " + L);
@@ -140,14 +147,14 @@ public class WanderingTheCityVis {
     // no input, so no validation
     nLook++;
     if (nLook > maxLook) {
-      errmes = "You can do at most " + maxLook + " look() calls.";
+      errMessage = "You can do at most " + maxLook + " look() calls.";
       ok = false;
       return new String[2];
     }
     char[][] seen = new char[2][2];
     for (int i = 0; i < 2; ++i)
       for (int j = 0; j < 2; ++j) {
-        seen[i][j] = cityMap[(curPos[0] + S + i - 1) % S][(curPos[1] + S + j - 1) % S];
+        seen[i][j] = realMap[(curPos[0] + S + i - 1) % S][(curPos[1] + S + j - 1) % S];
         if (vis)
           seenVis[(curPos[0] + S + i - 1) % S][(curPos[1] + S + j - 1) % S] = true;
       }
@@ -160,7 +167,7 @@ public class WanderingTheCityVis {
   // -----------------------------------------
   private boolean validShift(int shift) {
     if (shift <= -S || shift >= S) {
-      errmes = "Value of shift (" + shift + ") must be between " + (-S + 1) + " and " + (S - 1) + ", inclusive.";
+      errMessage = "Value of shift (" + shift + ") must be between " + (-S + 1) + " and " + (S - 1) + ", inclusive.";
       ok = false;
       return false;
     }
@@ -173,7 +180,7 @@ public class WanderingTheCityVis {
   // -----------------------------------------
   private int walk(int[] shift) {
     if (shift == null || shift.length != 2) {
-      errmes = "Shift must have exactly two elements";
+      errMessage = "Shift must have exactly two elements";
       ok = false;
       return -1;
     }
@@ -185,7 +192,7 @@ public class WanderingTheCityVis {
       curPos[i] = applyShift(curPos[i], shift[i]);
     totalWalked += Math.abs(shift[0]) + Math.abs(shift[1]);
     if (totalWalked > maxTotalWalk) {
-      errmes = "You can walk at most " + maxTotalWalk + " distance.";
+      errMessage = "You can walk at most " + maxTotalWalk + " distance.";
       ok = false;
       return -1;
     }
@@ -194,7 +201,7 @@ public class WanderingTheCityVis {
   // -----------------------------------------
   private boolean validCoord(int coord) {
     if (coord < 0 || coord >= S) {
-      errmes = "Value of coordinate (" + coord + ") must be between 0 and " + (S - 1) + ", inclusive.";
+      errMessage = "Value of coordinate (" + coord + ") must be between 0 and " + (S - 1) + ", inclusive.";
       ok = false;
       return false;
     }
@@ -203,7 +210,7 @@ public class WanderingTheCityVis {
   // -----------------------------------------
   private int guess(int[] coord) {
     if (coord == null || coord.length != 2) {
-      errmes = "Coord must have exactly two elements";
+      errMessage = "Coord must have exactly two elements";
       ok = false;
       return -1;
     }
@@ -212,7 +219,7 @@ public class WanderingTheCityVis {
         return -1;
     nGuess++;
     if (nGuess > maxGuess) {
-      errmes = "You can do at most " + maxGuess + " guess() calls.";
+      errMessage = "You can do at most " + maxGuess + " guess() calls.";
       ok = false;
       return -1;
     }
@@ -252,14 +259,14 @@ public class WanderingTheCityVis {
 
       String[] cityMapStr = new String[S];
       for (int i = 0; i < S; ++i)
-        cityMapStr[i] = new String(cityMapOld[i]);
+        cityMapStr[i] = new String(playerViewMap[i]);
 
       // call the solution
       whereAmI(cityMapStr, W, L, G);
 
       if (!ok) {
         // something went wrong during library calls
-        addFatalError(errmes);
+        addFatalError(errMessage);
         return -1;
       }
 
@@ -326,12 +333,11 @@ public class WanderingTheCityVis {
       } else if (request[2] == 1) {
         // two integers
         int[] coord = new int[2];
-        for (int i = 0; i < 2; ++i)
-          coord[i] = request[i];
-        guess(coord);
+        System.arraycopy(request, 0, coord, 0, 2);
+        int result = guess(coord);
         if (!ok)
           return 0;
-        Actions.responses.add(new String[]{"", ""});
+        Actions.responses.add(new String[]{String.valueOf(result), ""});
       } else {
         return 0;
       }
@@ -357,7 +363,7 @@ public class WanderingTheCityVis {
     // buildings on the map
     for (int i = 0; i < S; ++i)
       for (int j = 0; j < S; ++j) {
-        g2.setColor(new Color(cityMapOld[i][j] == 'X' ? 0x444444 : 0xDDDDDD));
+        g2.setColor(new Color(playerViewMap[i][j] == 'X' ? 0x444444 : 0xDDDDDD));
         g2.fillRect(j * SZ, i * SZ, SZ, SZ);
       }
     // lines between buildings for streets
@@ -390,10 +396,10 @@ public class WanderingTheCityVis {
           for (int j = 0; j < S; ++j)
             if (seenVis[i][j]) {
               // border
-              g2.setColor(cityMap[i][j] == cityMapOld[i][j] ? Color.GREEN : Color.RED);
+              g2.setColor(realMap[i][j] == playerViewMap[i][j] ? Color.GREEN : Color.RED);
               g2.fillRect(j * SZ + 1, i * SZ + 1, SZ - 1, SZ - 1);
               // actual color of the building
-              g2.setColor(cityMap[i][j] == 'X' ? Color.BLACK : Color.WHITE);
+              g2.setColor(realMap[i][j] == 'X' ? Color.BLACK : Color.WHITE);
               g2.fillRect(j * SZ + 2, i * SZ + 2, SZ - 3, SZ - 3);
             }
       }
@@ -419,7 +425,7 @@ public class WanderingTheCityVis {
         for (int i = 0; i < S; ++i)
           for (int j = 0; j < S; ++j)
             if (seenVis[i][j]) {
-              g22.setColor(cityMap[i][j] == 'X' ? Color.BLACK : Color.WHITE);
+              g22.setColor(realMap[i][j] == 'X' ? Color.BLACK : Color.WHITE);
               g22.fillRect(j * SZ, i * SZ, SZ, SZ);
             }
         // lines between buildings for streets
@@ -465,7 +471,7 @@ public class WanderingTheCityVis {
       }
       System.out.println("Score = " + runTest(seed));
       if (!ok) {
-        System.out.println(errmes);
+        System.out.println(errMessage);
       }
     } catch (Exception e) {
       e.printStackTrace();

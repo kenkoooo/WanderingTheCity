@@ -1,3 +1,5 @@
+import java.security.NoSuchAlgorithmException;
+
 public class SolutionRunner implements Runnable {
   private int W, L, G;
   private String[] map;
@@ -11,7 +13,13 @@ public class SolutionRunner implements Runnable {
 
   @Override
   public void run() {
-    WanderingTheCity solution = new WanderingTheCity();
+    WanderingTheCity solution = null;
+    try {
+      solution = new WanderingTheCity();
+    } catch (NoSuchAlgorithmException e) {
+      e.printStackTrace();
+    }
+    assert solution != null;
     solution.whereAmI(map, W, L, G);
   }
 }
