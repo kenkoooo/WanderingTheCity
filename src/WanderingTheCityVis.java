@@ -465,34 +465,49 @@ public class WanderingTheCityVis {
         v = new Vis();
         jf.getContentPane().add(v);
       }
+      long start = System.currentTimeMillis();
+      System.out.println("Seed = " + seed);
       System.out.println("Score = " + runTest(seed));
+      System.out.println((System.currentTimeMillis() - start) + " ms");
       if (!ok) {
         System.out.println(errMessage);
       }
+      System.out.println();
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
   // -----------------------------------------
   public static void main(String[] args) {
-    long seed = 3;
     debug = true;
     vis = false;
     del = 100;
     SZ = 10;
+
+    long from = 1;
+    long to = 1;
     for (int i = 0; i < args.length; i++) {
       if (args[i].equals("-delay"))
         del = Integer.parseInt(args[++i]);
       if (args[i].equals("-size"))
         SZ = Integer.parseInt(args[++i]);
+      if (args[i].equals("-vis"))
+        vis = true;
+      if (args[i].equals("-from"))
+        from = Long.parseLong(args[++i]);
+      if (args[i].equals("-to"))
+        to = Long.parseLong(args[++i]);
     }
 
     if (!twoMaps || !vis) {
       vis = false;
       twoMaps = false;
     }
+    if (vis) to = from;
 
-    new WanderingTheCityVis(seed);
+    for (long seed = from; seed <= to; seed++) {
+      new WanderingTheCityVis(seed);
+    }
   }
   // -----------------------------------------
   private void addFatalError(String message) {
