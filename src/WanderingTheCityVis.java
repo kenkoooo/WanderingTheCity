@@ -96,9 +96,7 @@ public class WanderingTheCityVis {
 
       // ユーザーに渡すためにコピーする
       for (int i = 0; i < S; i++)
-        for (int j = 0; j < S; j++) {
-          playerViewMap[i][j] = realMap[i][j];
-        }
+        System.arraycopy(realMap[i], 0, playerViewMap[i], 0, S);
 
       // ランダムに破壊する
       int nChange = 0;
@@ -128,9 +126,6 @@ public class WanderingTheCityVis {
         System.out.println("S = " + S);
         System.out.println("Probability of black building = " + blackProb);
         System.out.println("Starting position: (" + startPos[0] + "," + startPos[1] + ")");
-        System.out.println("Old map:");
-        for (int i = 0; i < S; i++)
-          System.out.println(new String(playerViewMap[i]));
         System.out.println("Changed cells = " + nChange);
         System.out.println("Cost of walking W = " + W);
         System.out.println("Cost of look() L = " + L);
@@ -238,8 +233,7 @@ public class WanderingTheCityVis {
       generate(seed);
 
       curPos = new int[2];
-      for (int i = 0; i < 2; ++i)
-        curPos[i] = startPos[i];
+      System.arraycopy(startPos, 0, curPos, 0, 2);
       totalWalked = 0;
       nLook = 0;
       nGuess = 0;
@@ -248,7 +242,7 @@ public class WanderingTheCityVis {
       ok = true;
 
       if (vis) {
-        Wv = (twomaps ? S * 2 + 2 : S) * SZ + 20;
+        Wv = (twoMaps ? S * 2 + 2 : S) * SZ + 20;
         Hv = S * SZ + 40;
         seenVis = new boolean[S][S];
         guessedVis = new boolean[S][S];
@@ -299,35 +293,36 @@ public class WanderingTheCityVis {
   private Vis v;
   private static boolean debug;
   private static boolean vis;
-  private static boolean twomaps;
+  private static boolean twoMaps = true;
   private static int del;
   private static int SZ;
   private volatile boolean[][] seenVis;
   private volatile boolean[][] guessedVis;
   // -----------------------------------------
-  private int whereAmI(String[] map, int W, int L, int G) throws IOException, NumberFormatException, InterruptedException {
+  private void whereAmI(String[] map, int W, int L, int G) throws IOException, NumberFormatException, InterruptedException {
     SolutionRunner runner = new SolutionRunner(map, W, L, G);
     Thread thread = new Thread(runner);
     thread.start();
 
+    boolean processing = true;
+
     // simulate function calls
-    while (true) {
+    while (processing) {
       int[] request = Actions.requests.take();
       // get name of function invoked and read appropriate params
       if (request.length == 0) {
         // no params
         String[] looked = look();
         if (!ok)
-          return 0;
+          return;
         Actions.responses.add(looked);
       } else if (request[2] == 0) {
         // two integers
         int[] shift = new int[2];
-        for (int i = 0; i < 2; ++i)
-          shift[i] = request[i];
+        System.arraycopy(request, 0, shift, 0, 2);
         walk(shift);
         if (!ok)
-          return 0;
+          return;
 
         Actions.responses.add(new String[]{"", ""});
       } else if (request[2] == 1) {
@@ -336,10 +331,11 @@ public class WanderingTheCityVis {
         System.arraycopy(request, 0, coord, 0, 2);
         int result = guess(coord);
         if (!ok)
-          return 0;
+          return;
         Actions.responses.add(new String[]{String.valueOf(result), ""});
+        if (result == 1) processing = false;
       } else {
-        return 0;
+        return;
       }
       draw();
     }
@@ -351,7 +347,7 @@ public class WanderingTheCityVis {
     try {
       Thread.sleep(del);
     } catch (Exception e) {
-
+      e.printStackTrace();
     }
   }
   // -----------------------------------------
@@ -389,7 +385,7 @@ public class WanderingTheCityVis {
         DrawOldMap();
       BufferedImage bi = deepCopy(oldMap);
       Graphics2D g2 = (Graphics2D) bi.getGraphics();
-      if (!twomaps) {
+      if (!twoMaps) {
         // overlay seen parts of the map, using real black and white and with a border:
         // red for cells which differ from map and green for cells which match
         for (int i = 0; i < S; ++i)
@@ -415,7 +411,7 @@ public class WanderingTheCityVis {
           }
       g.drawImage(bi, 0, 0, S * SZ + 1, S * SZ + 1, null);
 
-      if (twomaps) {
+      if (twoMaps) {
         // draw currently seen parts of the map using fog of war - only show the cells observed
         BufferedImage bi2 = new BufferedImage(S * SZ + 1, S * SZ + 1, BufferedImage.TYPE_INT_RGB);
         Graphics2D g22 = (Graphics2D) bi2.getGraphics();
@@ -479,28 +475,24 @@ public class WanderingTheCityVis {
   }
   // -----------------------------------------
   public static void main(String[] args) {
-    long seed = 1;
-    vis = true;
-    twomaps = true;
+    long seed = 3;
+    debug = true;
+    vis = false;
     del = 100;
     SZ = 10;
     for (int i = 0; i < args.length; i++) {
       if (args[i].equals("-delay"))
         del = Integer.parseInt(args[++i]);
-      if (args[i].equals("-novis"))
-        vis = false;
       if (args[i].equals("-size"))
         SZ = Integer.parseInt(args[++i]);
-      if (args[i].equals("-debug"))
-        debug = true;
-      if (args[i].equals("-twomaps"))
-        twomaps = true;
     }
-    if (twomaps)
-      vis = true;
-    System.out.println("Start");
+
+    if (!twoMaps || !vis) {
+      vis = false;
+      twoMaps = false;
+    }
+
     new WanderingTheCityVis(seed);
-    System.out.println("Done");
   }
   // -----------------------------------------
   private void addFatalError(String message) {
