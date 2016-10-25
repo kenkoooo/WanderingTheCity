@@ -78,6 +78,16 @@ class WanderingTheCity {
   private int stopGuessing = 0;
   private int stopMatching = 0;
 
+  // マッチングに使い終わったパスの長さ
+  private int prevMatchingPathSize = 0;
+
+  // 空いている定義
+  private int isEmpty = 0;
+  private int downCount = 0;
+
+  // 残す候補数
+  private final int WIDTH = 1000;
+
   /**
    * 呼び出されるメソッド
    *
@@ -101,10 +111,17 @@ class WanderingTheCity {
   }
 
   private boolean mainProcess() {
-    if (viewed[curI][curJ]) {
-      walk(step, 0);
+    if (viewCount() >= isEmpty) {
+      if (downCount < S / 2) {
+        walk(step, 0);
+        downCount++;
+      } else {
+        walk(1, 0);
+        isEmpty++;
+      }
       return false;
     }
+    downCount = 0;
 
     look();
     if (!walk(step, step)) return true;
@@ -119,7 +136,7 @@ class WanderingTheCity {
       stopMatching = (S / 2);
     }
 
-    if (candidates.size() > 0.15 * S * S) return false;
+    if (candidates.size() > 0.15 * S * S && candidates.size() > WIDTH) return false;
 
     if (stopGuessing > 0) {
       stopGuessing--;
@@ -131,6 +148,7 @@ class WanderingTheCity {
     int response = Actions.guess(new int[]{i, j});
     if (response == 1) return true;
     stopGuessing = (G / L / 2);
+
     return false;
   }
 
@@ -170,8 +188,9 @@ class WanderingTheCity {
 
     // 歩幅を決める
     for (int i = 2; ; i++) {
-      if (S % i != 0) {
+      if (gcd(S, i) == 1) {
         step = i;
+        System.out.println("step = " + step);
         break;
       }
     }
@@ -197,31 +216,27 @@ class WanderingTheCity {
       int i = place.i;
       int j = place.j;
       int okay = 0;
-      int fail = 0;
+      for (int k = prevMatchingPathSize; k < lookPath.size(); k++) {
+        int pi = lookPath.get(k)[0];
+        int pj = lookPath.get(k)[1];
 
-      for (int[] p : lookPath) {
-        int pi = p[0];
-        int pj = p[1];
-
-        if (matchGivenLook(i + pi, j + pj, pi, pj)) {
-          okay++;
-        } else {
-          fail++;
-        }
+        if (matchGivenLook(i + pi, j + pj, pi, pj)) okay++;
       }
 
-      place.setScore((double) okay / (okay + fail));
+      double prevOkay = place.matchingScore * prevMatchingPathSize;
+      double score = (prevOkay + okay) / lookPath.size();
+      place.setScore(score);
     }
+    prevMatchingPathSize = lookPath.size();
 
     Collections.sort(candidates);
 
     // TODO
     double probability = 0.9999;
-    int width = 500;
 
     double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
     cuttingScore /= (lookPath.size() * 4);
-    while (candidates.size() > width) {
+    while (candidates.size() > WIDTH) {
       int tail = candidates.size() - 1;
       if (candidates.get(tail).matchingScore < cuttingScore)
         candidates.remove(tail);
@@ -273,9 +288,19 @@ class WanderingTheCity {
     lookPath.add(new int[]{curI, curJ});
 
     viewed[curI][curJ] = true;
-    viewed[p(curI + 1)][p(curJ + 1)] = true;
-    viewed[p(curI - 1)][p(curJ + 1)] = true;
-    viewed[p(curI + 1)][p(curJ - 1)] = true;
-    viewed[p(curI - 1)][p(curJ - 1)] = true;
+  }
+
+  private int viewCount() {
+    int cnt = 0;
+    if (viewed[curI][curJ]) cnt++;
+    if (viewed[p(curI + 1)][p(curJ + 1)]) cnt++;
+    if (viewed[p(curI - 1)][p(curJ + 1)]) cnt++;
+    if (viewed[p(curI + 1)][p(curJ - 1)]) cnt++;
+    if (viewed[p(curI - 1)][p(curJ - 1)]) cnt++;
+
+    return cnt;
+  }
+  private long gcd(long a, long b) {
+    return b == 0 ? a : gcd(b, a % b);
   }
 }
