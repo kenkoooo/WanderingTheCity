@@ -33,7 +33,7 @@ class WanderingTheCity {
   /**
    * 座標を正しく返す
    *
-   * @param x
+   * @param x 適当な座標
    * @return 座標 [0..S-1]
    */
   private int p(int x) {
@@ -46,9 +46,21 @@ class WanderingTheCity {
     return c == 'X' ? 1 : 0;
   }
 
-  // X なら 1 . なら 0 まだ見ていなければ -1 を入れる
-  private int[][] givenMap;
-  private int[][] lookMap;
+  /**
+   * 周囲 4 マスの状況を入れる。
+   * 例えば、
+   * [(0, 1)][(0, 2)]
+   * [(1, 1)][(1, 2)]
+   * が
+   * [X, X]
+   * [., X]
+   * のとき、
+   * map[1][2]=1011 とする
+   */
+  private byte[][] givenMap;
+  private byte[][] lookMap;
+
+  private boolean[][] viewed;
 
   private int curI = 0, curJ = 0;
   private int S, W, L, G;
@@ -64,14 +76,15 @@ class WanderingTheCity {
 
   // あと何回 guess クエリを控えるか
   private int stopGuessing = 0;
+  private int stopMatching = 0;
 
   /**
    * 呼び出されるメソッド
    *
-   * @param map
-   * @param W
-   * @param L
-   * @param G
+   * @param map 与えられるやつ
+   * @param W   与えられるやつ
+   * @param L   与えられるやつ
+   * @param G   与えられるやつ
    * @return 特に意味のない数字(fuck)
    */
   int whereAmI(String[] map, int W, int L, int G) {
@@ -81,52 +94,64 @@ class WanderingTheCity {
     this.G = G;
     init(map);
 
-    while (!mainProcess()) ;
+    while (true) {
+      if (mainProcess()) break;
+    }
     return 0;
   }
 
   private boolean mainProcess() {
-    if (isAlreadyViewed(curI, curJ)) {
+    if (viewed[curI][curJ]) {
       walk(step, 0);
       return false;
     }
 
-    addLookMap(Actions.look());
-    lookPath.add(new int[]{curI, curJ});
+    look();
     if (!walk(step, step)) return true;
+
+    // あまり歩いていないうちはマッチングしない
+    if (lookPath.size() < S / 2) return false;
+
+    if (stopMatching > 0) {
+      stopMatching--;
+    } else {
+      matchAndSort();
+      stopMatching = (S / 2);
+    }
+
+    if (candidates.size() > 0.15 * S * S) return false;
 
     if (stopGuessing > 0) {
       stopGuessing--;
       return false;
     }
-
-    if (lookPath.size() % (S / 20) == 0) {
-      matchAndSort();
-    }
-
-    // あまり歩いていないうちはマッチングしない
-    if (lookPath.size() < S / 2) return false;
-    matchAndSort();
-    if (candidates.size() > 0.15 * S * S) return false;
-
     int i = candidates.get(0).i;
     int j = candidates.get(0).j;
     candidates.remove(0);
     int response = Actions.guess(new int[]{i, j});
     if (response == 1) return true;
-
     stopGuessing = (G / L / 2);
     return false;
   }
 
   private void init(String[] map) {
-    givenMap = new int[S][S];
-    lookMap = new int[S][S];
+    givenMap = new byte[S][S];
+    lookMap = new byte[S][S];
     for (int i = 0; i < S; i++)
       for (int j = 0; j < S; j++) {
-        givenMap[i][j] = m(map[i].charAt(j));
-        lookMap[i][j] = -1;
+        byte bit = 0;
+        int cur = 0;
+        for (int ai = -1; ai < 1; ai++) {
+          for (int aj = -1; aj < 1; aj++) {
+            bit |= (m(map[p(i + ai)].charAt(p(j + aj))) << cur);
+            cur++;
+          }
+        }
+
+        givenMap[i][j] = bit;
       }
+
+    viewed = new boolean[S][S];
 
     SecureRandom random = null;
     try {
@@ -153,11 +178,18 @@ class WanderingTheCity {
   }
 
   private void addLookMap(String[] look) {
+    if (look[0].length() == 0) {
+      System.out.println();
+    }
+    byte bit = 0;
+    int cur = 0;
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
-        lookMap[p(curI - 1 + i)][p(curJ - 1 + j)] = m(look[i].charAt(j));
+        bit |= (m(look[i].charAt(j)) << cur);
+        cur++;
       }
     }
+    lookMap[p(curI)][p(curJ)] = bit;
   }
 
   private void matchAndSort() {
@@ -171,13 +203,11 @@ class WanderingTheCity {
         int pi = p[0];
         int pj = p[1];
 
-        for (int ai = -1; ai < 1; ai++)
-          for (int aj = -1; aj < 1; aj++)
-            if (matchGivenLook(i + pi + ai, j + pj + aj, pi + ai, pj + aj)) {
-              okay++;
-            } else {
-              fail++;
-            }
+        if (matchGivenLook(i + pi, j + pj, pi, pj)) {
+          okay++;
+        } else {
+          fail++;
+        }
       }
 
       place.setScore((double) okay / (okay + fail));
@@ -185,9 +215,19 @@ class WanderingTheCity {
 
     Collections.sort(candidates);
 
-    double cuttingScore = (double) leastMatch(lookPath.size() * 4, 0.99) / lookPath.size() / 4;
-    while (candidates.get(candidates.size() - 1).matchingScore < cuttingScore)
-      candidates.remove(candidates.size() - 1);
+    // TODO
+    double probability = 0.9999;
+    int width = 500;
+
+    double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
+    cuttingScore /= (lookPath.size() * 4);
+    while (candidates.size() > width) {
+      int tail = candidates.size() - 1;
+      if (candidates.get(tail).matchingScore < cuttingScore)
+        candidates.remove(tail);
+      else
+        break;
+    }
   }
 
   /**
@@ -217,15 +257,6 @@ class WanderingTheCity {
     return 0;
   }
 
-  private boolean isAlreadyViewed(int i, int j) {
-    for (int ai = -1; ai < 1; ai++) {
-      for (int aj = -1; aj < 1; aj++) {
-        if (lookMap[p(i + ai)][p(j + aj)] != -1) return true;
-      }
-    }
-    return false;
-  }
-
   private boolean matchGivenLook(int gi, int gj, int li, int lj) {
     return givenMap[p(gi)][p(gj)] == lookMap[p(li)][p(lj)];
   }
@@ -235,5 +266,16 @@ class WanderingTheCity {
     curI = p(curI + di);
     curJ = p(curJ + dj);
     return ret == 0;
+  }
+
+  private void look() {
+    addLookMap(Actions.look());
+    lookPath.add(new int[]{curI, curJ});
+
+    viewed[curI][curJ] = true;
+    viewed[p(curI + 1)][p(curJ + 1)] = true;
+    viewed[p(curI - 1)][p(curJ + 1)] = true;
+    viewed[p(curI + 1)][p(curJ - 1)] = true;
+    viewed[p(curI - 1)][p(curJ - 1)] = true;
   }
 }

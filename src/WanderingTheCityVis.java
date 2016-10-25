@@ -483,9 +483,8 @@ public class WanderingTheCityVis {
     vis = false;
     del = 100;
     SZ = 10;
+    long seed = 1;
 
-    long from = 1;
-    long to = 1;
     for (int i = 0; i < args.length; i++) {
       if (args[i].equals("-delay"))
         del = Integer.parseInt(args[++i]);
@@ -493,21 +492,16 @@ public class WanderingTheCityVis {
         SZ = Integer.parseInt(args[++i]);
       if (args[i].equals("-vis"))
         vis = true;
-      if (args[i].equals("-from"))
-        from = Long.parseLong(args[++i]);
-      if (args[i].equals("-to"))
-        to = Long.parseLong(args[++i]);
+      if (args[i].equals("-seed"))
+        seed = Long.parseLong(args[++i]);
     }
 
     if (!twoMaps || !vis) {
       vis = false;
       twoMaps = false;
     }
-    if (vis) to = from;
 
-    for (long seed = from; seed <= to; seed++) {
-      new WanderingTheCityVis(seed);
-    }
+    new WanderingTheCityVis(seed);
   }
   // -----------------------------------------
   private void addFatalError(String message) {
