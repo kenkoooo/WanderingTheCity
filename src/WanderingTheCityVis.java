@@ -482,7 +482,7 @@ public class WanderingTheCityVis {
     debug = true;
     vis = false;
     del = 10;
-    SZ = 10;
+    SZ = 4;
     long seed = 1;
 
     for (int i = 0; i < args.length; i++) {

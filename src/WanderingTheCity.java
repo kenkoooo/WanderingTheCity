@@ -2,6 +2,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 
 class WanderingTheCity {
   class MatchingPlace implements Comparable<MatchingPlace> {
@@ -72,7 +73,7 @@ class WanderingTheCity {
   private ArrayList<MatchingPlace> candidates = new ArrayList<>();
 
   // 歩幅。2 以上で S の約数でない数字にしたい
-  private int step;
+  private int step1 = 0, step2 = 0;
 
   // あと何回 guess クエリを控えるか
   private int stopGuessing = 0;
@@ -117,8 +118,9 @@ class WanderingTheCity {
     int[] DI = new int[]{+1, -1, -1, +1};
     int[] DJ = new int[]{-1, -1, +1, +1};
 
+    ArrayList<int[]> list = new ArrayList<>();
     while (isEmpty < 9) {
-      for (int dist = step; dist <= S; dist += step) {
+      for (int dist = step1 * 2; dist <= S; dist += step1) {
         int si = curI;
         int sj = curJ + dist;
         for (int edge = 0; edge < 4; edge++)
@@ -126,9 +128,24 @@ class WanderingTheCity {
             si += DI[edge];
             sj += DJ[edge];
             if (viewCount(si, sj) <= isEmpty) {
-              return new int[]{si - curI, sj - curJ};
+              int score = 0;
+              for (int x = -2; x <= 2; x++) {
+                for (int y = -2; y <= 2; y++) {
+                  score += viewCount(si + x, sj + y);
+                }
+              }
+              list.add(new int[]{si - curI, sj - curJ, score});
             }
           }
+        if (!list.isEmpty()) {
+          Collections.sort(list, new Comparator<int[]>() {
+            @Override
+            public int compare(int[] o1, int[] o2) {
+              return Integer.compare(o1[2], o2[2]);
+            }
+          });
+          return new int[]{list.get(0)[0], list.get(0)[1]};
+        }
       }
       isEmpty++;
     }
@@ -138,9 +155,9 @@ class WanderingTheCity {
   private boolean mainProcess() {
     // 最初は歩かずに look
     if (lookCount > 0) {
-      // (step, step) に行けるなら行く
-      if (viewCount(curI + step, curJ + step) <= isEmpty) {
-        if (!walk(step, step)) return true;
+      // (step1, step2) に行けるなら行く
+      if (viewCount(curI + step1, curJ + step2) <= isEmpty) {
+        if (!walk(step1, step2)) return true;
       } else {
         // 行けなければ歩く場所を決めてもらう
         int[] where = whereToWalk();
@@ -213,9 +230,14 @@ class WanderingTheCity {
     // 歩幅を決める
     for (int i = 2; ; i++) {
       if (gcd(S, i) == 1) {
-        step = i;
-        System.out.println("step = " + step);
-        break;
+        if (step1 == 0) {
+          step1 = i;
+          System.out.println("step1 = " + step1);
+        } else if (gcd(step1, i) == 1) {
+          step2 = i;
+          System.out.println("step2 = " + step2);
+          break;
+        }
       }
     }
   }
