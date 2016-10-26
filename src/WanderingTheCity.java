@@ -37,8 +37,8 @@ class WanderingTheCity {
    * @return 座標 [0..S-1]
    */
   private int p(int x) {
-    if (x < 0) return x + S;
-    if (x >= S) return x - S;
+    while (x < 0) x += S;
+    while (x >= S) x -= S;
     return x;
   }
 
@@ -83,10 +83,13 @@ class WanderingTheCity {
 
   // 空いている定義
   private int isEmpty = 0;
-  private int downCount = 0;
 
   // 残す候補数
   private final int WIDTH = 1000;
+
+  // クエリのカウント
+  private int walkCount = 0;
+  private int lookCount = 0;
 
   /**
    * 呼び出されるメソッド
@@ -110,24 +113,47 @@ class WanderingTheCity {
     return 0;
   }
 
-  private boolean mainProcess() {
-    if (viewCount() >= isEmpty) {
-      if (downCount < S / 2) {
-        walk(step, 0);
-        downCount++;
-      } else {
-        walk(1, 0);
-        isEmpty++;
-      }
-      return false;
-    }
-    downCount = 0;
+  private int[] whereToWalk() {
+    int[] DI = new int[]{+1, -1, -1, +1};
+    int[] DJ = new int[]{-1, -1, +1, +1};
 
-    look();
-    if (!walk(step, step)) return true;
+    while (isEmpty < 9) {
+      for (int dist = 1; dist <= S; dist++) {
+        int si = curI;
+        int sj = curJ + dist;
+        for (int edge = 0; edge < 4; edge++)
+          for (int i = 0; i < dist; i++) {
+            si += DI[edge];
+            sj += DJ[edge];
+            if (viewCount(si, sj) <= isEmpty) {
+              return new int[]{si - curI, sj - curJ};
+            }
+          }
+      }
+      isEmpty++;
+    }
+    return null;
+  }
+
+  private boolean mainProcess() {
+    // 最初は歩かずに look
+    if (lookCount > 0) {
+      // (step, step) に行けるなら行く
+      if (viewCount(curI + step, curJ + step) <= isEmpty) {
+        if (!walk(step, step)) return true;
+      } else {
+        // 行けなければ歩く場所を決めてもらう
+        int[] where = whereToWalk();
+        if (where != null) {
+          if (!walk(where[0], where[1])) return true;
+        }
+      }
+    }
+
+    if (!viewed[p(curI)][p(curJ)]) look();
 
     // あまり歩いていないうちはマッチングしない
-    if (lookPath.size() < S / 2) return false;
+    if (lookPath.size() < S) return false;
 
     if (stopMatching > 0) {
       stopMatching--;
@@ -232,7 +258,7 @@ class WanderingTheCity {
     Collections.sort(candidates);
 
     // TODO
-    double probability = 0.9999;
+    double probability = 0.99999;
 
     double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
     cuttingScore /= (lookPath.size() * 4);
@@ -277,6 +303,7 @@ class WanderingTheCity {
   }
 
   private boolean walk(int di, int dj) {
+    walkCount++;
     int ret = Actions.walk(new int[]{di, dj});
     curI = p(curI + di);
     curJ = p(curJ + dj);
@@ -284,20 +311,19 @@ class WanderingTheCity {
   }
 
   private void look() {
+    lookCount++;
     addLookMap(Actions.look());
     lookPath.add(new int[]{curI, curJ});
 
     viewed[curI][curJ] = true;
   }
 
-  private int viewCount() {
+  private int viewCount(int i, int j) {
     int cnt = 0;
-    if (viewed[curI][curJ]) cnt++;
-    if (viewed[p(curI + 1)][p(curJ + 1)]) cnt++;
-    if (viewed[p(curI - 1)][p(curJ + 1)]) cnt++;
-    if (viewed[p(curI + 1)][p(curJ - 1)]) cnt++;
-    if (viewed[p(curI - 1)][p(curJ - 1)]) cnt++;
-
+    for (int k = -1; k <= 1; k++)
+      for (int l = -1; l <= 1; l++) {
+        if (viewed[p(i + k)][p(j + l)]) cnt++;
+      }
     return cnt;
   }
   private long gcd(long a, long b) {

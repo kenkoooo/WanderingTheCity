@@ -2,16 +2,6 @@ import subprocess
 import sys
 import time
 
-MAX_LEN = 40
-
-
-def get_progressbar_str(progress):
-    length = int(MAX_LEN * progress)
-    return ('[' + '=' * length +
-            ('>' if length < MAX_LEN else '') +
-            ' ' * (MAX_LEN - length) +
-            '] %.1f%%' % (progress * 100.))
-
 
 def main():
     min_seed = 117
@@ -36,12 +26,9 @@ def main():
 
         # プログレスバーを表示
         progress = 1.0 * (seed - min_seed + 1) / num
-        sys.stderr.write('\r\033[K' + get_progressbar_str(progress))
-        sys.stderr.write(('\tElapsed\t%.1f s' % elapsed_time))
-        sys.stderr.write(('\tRemain\t%.1f s' % remain_time))
-        sys.stderr.flush()
-    sys.stderr.write('\n')
-    sys.stderr.flush()
+        print(seed)
+        print('\tElapsed\t%.1f s' % elapsed_time)
+        print('\tRemain\t%.1f s' % remain_time)
 
     total = 0.0
     for k, v in score_dict.items():
