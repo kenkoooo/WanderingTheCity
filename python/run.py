@@ -1,17 +1,24 @@
 import subprocess
-import sys
 import time
+import argparse
 
 
-def main():
+def command(seed, vis=False):
+    ret = ["java", "-cp", "out/production/WanderingTheCity",
+           "WanderingTheCityVis", "-seed", str(seed)]
+    if vis:
+        ret.append("-vis")
+    return ret
+
+
+def batch():
     min_seed = 117
     num = 100
     score_dict = {}
 
     start = time.time()
     for seed in range(min_seed, min_seed + num):
-        output = subprocess.check_output(["java", "-cp", "out/production/WanderingTheCity",
-                                          "WanderingTheCityVis", "-seed", str(seed)]).decode("ascii")
+        output = subprocess.check_output(command(seed)).decode("ascii")
         # 出力をパース
         lines = output.split("\n")
         score = float([line for line in lines if "Score = " in line][0].replace("Score = ", ""))
@@ -37,5 +44,27 @@ def main():
     print("Ave.\t{average}".format(average=(total / num)))
 
 
+def visualize(seed):
+    print(subprocess.check_output(command(seed, True)).decode("ascii"))
+
+
+def main(a):
+    if not a.seed:
+        batch()
+    else:
+        visualize(a.seed)
+
+
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='This script is ...')
+    parser.add_argument('-s', '--seed',
+                        action='store',
+                        nargs=None,
+                        const=None,
+                        default=None,
+                        type=str,
+                        choices=None,
+                        help='Directory path where your taken photo files are located.',
+                        metavar=None)
+    args = parser.parse_args()
+    main(args)

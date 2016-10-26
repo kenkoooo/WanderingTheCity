@@ -118,7 +118,7 @@ class WanderingTheCity {
     int[] DJ = new int[]{-1, -1, +1, +1};
 
     while (isEmpty < 9) {
-      for (int dist = 1; dist <= S; dist++) {
+      for (int dist = step; dist <= S; dist += step) {
         int si = curI;
         int sj = curJ + dist;
         for (int edge = 0; edge < 4; edge++)
@@ -172,6 +172,7 @@ class WanderingTheCity {
     int j = candidates.get(0).j;
     candidates.remove(0);
     int response = Actions.guess(new int[]{i, j});
+
     if (response == 1) return true;
     stopGuessing = (G / L / 2);
 
