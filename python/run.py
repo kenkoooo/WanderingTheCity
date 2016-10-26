@@ -22,8 +22,13 @@ def batch():
         # 出力をパース
         lines = output.split("\n")
         score = float([line for line in lines if "Score = " in line][0].replace("Score = ", ""))
-        s = float([line for line in lines if "S = " in line][0].replace("S = ", ""))
-        score_dict[seed] = int(score / s / s * 10000) / 100.0
+        s = int([line for line in lines if "S = " in line][0].replace("S = ", ""))
+        look = int(
+            [line for line in lines if "Number of look() calls = " in line][0].replace("Number of look() calls = ", ""))
+        guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
+            "Number of incorrect guess() calls = ", ""))
+
+        score_dict[seed] = (int(score), s, look, guess)
 
         # 時間
         elapsed_time = time.time() - start
@@ -31,16 +36,16 @@ def batch():
         estimated_total = sec_per_case * num
         remain_time = estimated_total - elapsed_time
 
-        # プログレスバーを表示
-        progress = 1.0 * (seed - min_seed + 1) / num
-        print(seed)
-        print('\tElapsed\t%.1f s' % elapsed_time)
-        print('\tRemain\t%.1f s' % remain_time)
+        print(str(seed) + (' Elapsed\t%.1f s' % elapsed_time) + ('\tRemain\t%.1f s' % remain_time))
 
     total = 0.0
     for k, v in score_dict.items():
-        print("{seed}:\t{score}".format(seed=k, score=v))
-        total += v
+        print("{seed}:\tS = {S}\tlook = {look}\tguess = {guess}\tscore = {score}".format(seed=k,
+                                                                                         score=v[0],
+                                                                                         S=v[1],
+                                                                                         look=v[2],
+                                                                                         guess=v[3]))
+        total += v[0]
     print("Ave.\t{average}".format(average=(total / num)))
 
 
