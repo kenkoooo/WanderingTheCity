@@ -1,6 +1,10 @@
+import json
 import subprocess
 import time
 import argparse
+import datetime
+
+LOG_DIR = "log/"
 
 
 def command(seed, vis=False):
@@ -14,7 +18,7 @@ def command(seed, vis=False):
 def batch():
     min_seed = 117
     num = 100
-    score_dict = {}
+    results = []
 
     start = time.time()
     for seed in range(min_seed, min_seed + num):
@@ -28,7 +32,12 @@ def batch():
         guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
             "Number of incorrect guess() calls = ", ""))
 
-        score_dict[seed] = (int(score), s, look, guess)
+        results.append({
+            "seed": seed,
+            "score": score,
+            "S": s,
+            "look": look,
+            "guess": guess})
 
         # 時間
         elapsed_time = time.time() - start
@@ -39,14 +48,15 @@ def batch():
         print(str(seed) + (' Elapsed\t%.1f s' % elapsed_time) + ('\tRemain\t%.1f s' % remain_time))
 
     total = 0.0
-    for k, v in score_dict.items():
-        print("{seed}:\tS = {S}\tlook = {look}\tguess = {guess}\tscore = {score}".format(seed=k,
-                                                                                         score=v[0],
-                                                                                         S=v[1],
-                                                                                         look=v[2],
-                                                                                         guess=v[3]))
-        total += v[0]
+    for r in results:
+        total += r["score"]
     print("Ave.\t{average}".format(average=(total / num)))
+
+    now = datetime.datetime.now()
+    filename = LOG_DIR + now.strftime("%Y-%m-%d-%H-%M-%S") + ".json"
+    f = open(filename, "w")
+    json.dump(results, f, ensure_ascii=False, indent=4, sort_keys=True, separators=(',', ': '))
+    print(filename)
 
 
 def visualize(seed):
