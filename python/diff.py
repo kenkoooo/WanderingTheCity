@@ -18,7 +18,9 @@ def main(a):
     for r in before:
         diff[r["seed"]]["before"] = r["score"]
 
+    total = 0
     for seed, d in diff.items():
+        total += d["after"]
         ds = d["after"] - d["before"]
         print("{seed}:\t{before}\t->\t{after}\t{diff}".format(
             seed=seed,
@@ -26,6 +28,7 @@ def main(a):
             after=("%.2e" % d["after"]),
             diff=ds
         ))
+    print(total / len(after))
 
 
 if __name__ == '__main__':

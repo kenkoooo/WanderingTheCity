@@ -162,12 +162,9 @@ class WanderingTheCity {
       stopMatching = (S / 2);
     }
 
-    if (candidates.size() > 0.15 * S * S && candidates.size() > WIDTH) return false;
+    double diff = candidates.get(0).matchingScore - candidates.get(1).matchingScore;
+    if (diff < 0.000001 && lookPath.size() < 10 * S) return false;
 
-    if (stopGuessing > 0) {
-      stopGuessing--;
-      return false;
-    }
     int i = candidates.get(0).i;
     int j = candidates.get(0).j;
     candidates.remove(0);
