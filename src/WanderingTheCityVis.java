@@ -481,7 +481,7 @@ public class WanderingTheCityVis {
   public static void main(String[] args) {
     debug = true;
     vis = false;
-    del = 100;
+    del = 10;
     SZ = 10;
     long seed = 1;
 
