@@ -87,7 +87,7 @@ class WanderingTheCity {
   private int isEmpty = 0;
 
   // 残す候補数
-  private final int WIDTH = 1000;
+  private final int WIDTH = 5000;
 
   // クエリのカウント
   private int walkCount = 0;
@@ -156,8 +156,10 @@ class WanderingTheCity {
   private boolean mainProcess() {
     // 最初は歩かずに look
     if (lookCount > 0) {
-      // (step1, step2) に行けるなら行く
-      if (viewCount(curI + step1, curJ + step2) <= isEmpty) {
+      // (step1, 0) に行けるなら行く
+      if (viewCount(curI + step1, curJ) <= isEmpty) {
+        if (!walk(step1, 0)) return true;
+      } else if (viewCount(curI + step1, curJ + step2) <= isEmpty) {
         if (!walk(step1, step2)) return true;
       } else {
         // 行けなければ歩く場所を決めてもらう
@@ -170,19 +172,27 @@ class WanderingTheCity {
 
     if (!viewed[p(curI)][p(curJ)]) look();
 
-    // あまり歩いていないうちはマッチングしない
-    if (lookPath.size() < S) return false;
-
-    if (stopMatching > 0) {
-      stopMatching--;
-    } else {
-      matchAndSort();
-      reduceCandidates();
-      stopMatching = (S / 2);
+    if (stopGuessing > 0) {
+      stopGuessing--;
+      return false;
     }
 
+    matchAndSort();
+    if (lookPath.size() > 10) reduceCandidates();
+
     double diff = candidates.get(0).matchingScore - candidates.get(1).matchingScore;
-    if (diff < 0.000001 && lookPath.size() < 10 * S) return false;
+    if (diff < 0.000001 && lookPath.size() < 10 * S) {
+      stopGuessing += 100;
+      return false;
+    }
+    if (diff < 0.0001 && lookPath.size() < 5 * S) {
+      stopGuessing += 100;
+      return false;
+    }
+    if (diff < 0.1 && lookPath.size() < S) {
+      stopGuessing += 5;
+      return false;
+    }
 
     int i = candidates.get(0).i;
     int j = candidates.get(0).j;
@@ -230,28 +240,21 @@ class WanderingTheCity {
     }
 
     // 歩幅を決める
-    for (int i = 2; ; i++) {
-      if (WanderTools.gcd(S, i) == 1) {
-        if (step1 == 0) {
-          step1 = i;
-          System.out.println("step1 = " + step1);
-        } else if (WanderTools.gcd(step1, i) == 1) {
-          step2 = i;
-          System.out.println("step2 = " + step2);
-          break;
-        }
-      }
-    }
-
     estimateSmallRect(map);
   }
 
   private void estimateSmallRect(String[] map) {
     int[] divisors = WanderTools.divisors(map.length);
-    int[][] result = new int[divisors.length * divisors.length][4];
+    if (divisors.length == 1) {
+      step1 = 2;
+      step2 = 2;
+      return;
+    }
+    int[][] result = new int[divisors.length * divisors.length - 1][4];
     int cur = 0;
     for (int di : divisors)
       for (int dj : divisors) {
+        if (di == dj && dj == map.length) continue;
         int[][] blackCount = new int[di][dj];
         for (int i = 0; i < S; i++) {
           for (int j = 0; j < S; j++) {
@@ -265,7 +268,7 @@ class WanderingTheCity {
             p += (double) Math.min(num - blackCount[i][j], blackCount[i][j]) / num;
           }
         }
-        result[cur][0] = (int) (p / di / dj * 10000);
+        result[cur][0] = (int) (p / di / dj * 1e4);
         result[cur][1] = di * dj;
         result[cur][2] = di;
         result[cur][3] = dj;
@@ -279,11 +282,15 @@ class WanderingTheCity {
         return Integer.compare(o1[2], o2[2]);
       }
     });
-    int idx = result[0][0] > 0.2 ? 0 : 1;
 
-    int i = result[idx][2];
-    int j = result[idx][3];
-    System.out.println(i + "x" + j);
+    // TODO 0.2 以上は一致してろ
+    if (result[0][0] > 1e4 * 0.2) {
+      step1 = 2;
+      step2 = 2;
+    } else {
+      step1 = result[0][2] == map.length ? 2 : result[0][2];
+      step2 = result[0][3] == map.length ? 2 : result[0][3];
+    }
   }
 
   private void addLookMap(String[] look) {
@@ -325,7 +332,7 @@ class WanderingTheCity {
         int pi = lookPath.get(k)[0];
         int pj = lookPath.get(k)[1];
 
-        if (matchGivenLook(i + pi, j + pj, pi, pj)) okay++;
+        okay += matchGivenLook(i + pi, j + pj, pi, pj);
       }
 
       double prevOkay = place.matchingScore * prevMatchingPathSize;
@@ -337,8 +344,8 @@ class WanderingTheCity {
     Collections.sort(candidates);
   }
 
-  private boolean matchGivenLook(int gi, int gj, int li, int lj) {
-    return givenMap[p(gi)][p(gj)] == lookMap[p(li)][p(lj)];
+  private int matchGivenLook(int gi, int gj, int li, int lj) {
+    return 4 - Integer.bitCount(givenMap[p(gi)][p(gj)] ^ lookMap[p(li)][p(lj)]);
   }
 
   private boolean walk(int di, int dj) {

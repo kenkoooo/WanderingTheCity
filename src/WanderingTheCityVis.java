@@ -65,7 +65,7 @@ public class WanderingTheCityVis {
       }
 
       int numBlack = 0;
-      int repeatI = 0, repeatJ = 0;
+      int repeatI, repeatJ;
       do {
         // 繰り返し周期を選ぶ
         repeatI = reps[random.nextInt(repCnt)];
@@ -258,7 +258,7 @@ public class WanderingTheCityVis {
         cityMapStr[i] = new String(playerViewMap[i]);
 
       // call the solution
-      whereAmI(cityMapStr, W, L, G);
+      whereAmI(cityMapStr, W, L, G, seed);
 
       if (!ok) {
         // something went wrong during library calls
@@ -301,8 +301,8 @@ public class WanderingTheCityVis {
   private volatile boolean[][] seenVis;
   private volatile boolean[][] guessedVis;
   // -----------------------------------------
-  private void whereAmI(String[] map, int W, int L, int G) throws IOException, NumberFormatException, InterruptedException {
-    SolutionRunner runner = new SolutionRunner(map, W, L, G);
+  private void whereAmI(String[] map, int W, int L, int G, long seed) throws IOException, NumberFormatException, InterruptedException {
+    SolutionRunner runner = new SolutionRunner(map, W, L, G, seed);
     Thread thread = new Thread(runner);
     thread.start();
 

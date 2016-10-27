@@ -1,5 +1,6 @@
 import json
 import subprocess
+from subprocess import TimeoutExpired
 import time
 import argparse
 import datetime
@@ -17,27 +18,29 @@ def command(seed, vis=False):
 
 
 def simulate(seed):
-    start = time.time()
-    output = subprocess.check_output(command(seed)).decode("ascii")
-    # 出力をパース
-    lines = output.split("\n")
-    score = float([line for line in lines if "Score = " in line][0].replace("Score = ", ""))
-    s = int([line for line in lines if "S = " in line][0].replace("S = ", ""))
-    look = int(
-        [line for line in lines if "Number of look() calls = " in line][0].replace("Number of look() calls = ", ""))
-    guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
-        "Number of incorrect guess() calls = ", ""))
+    try:
+        start = time.time()
+        output = subprocess.check_output(command(seed), timeout=20).decode("ascii")
+        # 出力をパース
+        lines = output.split("\n")
+        score = float([line for line in lines if "Score = " in line][0].replace("Score = ", ""))
+        s = int([line for line in lines if "S = " in line][0].replace("S = ", ""))
+        look = int(
+            [line for line in lines if "Number of look() calls = " in line][0].replace("Number of look() calls = ", ""))
+        guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
+            "Number of incorrect guess() calls = ", ""))
 
-    result = {
-        "seed": seed,
-        "score": score,
-        "S": s,
-        "look": look,
-        "guess": guess}
-    exec_time = time.time() - start
-    print("{seed}:\t{t} s".format(seed=seed, t=("%.2f" % exec_time)))
-    if exec_time > 10:
+        result = {
+            "seed": seed,
+            "score": score,
+            "S": s,
+            "look": look,
+            "guess": guess}
+        exec_time = time.time() - start
+        print("{seed}:\t{t} s".format(seed=seed, t=("%.2f" % exec_time)))
+    except TimeoutExpired:
         print("TLE in {seed}".format(seed=seed))
+        return {}
     return result
 
 
