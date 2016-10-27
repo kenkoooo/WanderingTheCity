@@ -3,6 +3,7 @@ import subprocess
 import time
 import argparse
 import datetime
+import multiprocessing as mp
 
 LOG_DIR = "log/"
 
@@ -15,39 +16,38 @@ def command(seed, vis=False):
     return ret
 
 
+def simulate(seed):
+    start = time.time()
+    output = subprocess.check_output(command(seed)).decode("ascii")
+    # 出力をパース
+    lines = output.split("\n")
+    score = float([line for line in lines if "Score = " in line][0].replace("Score = ", ""))
+    s = int([line for line in lines if "S = " in line][0].replace("S = ", ""))
+    look = int(
+        [line for line in lines if "Number of look() calls = " in line][0].replace("Number of look() calls = ", ""))
+    guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
+        "Number of incorrect guess() calls = ", ""))
+
+    result = {
+        "seed": seed,
+        "score": score,
+        "S": s,
+        "look": look,
+        "guess": guess}
+    exec_time = time.time() - start
+    print("{seed}:\t{t} s".format(seed=seed, t=("%.2f" % exec_time)))
+    if exec_time > 10:
+        print("TLE in {seed}".format(seed=seed))
+    return result
+
+
 def batch(num):
     min_seed = 117
-    results = []
-
-    start = time.time()
-    for seed in range(min_seed, min_seed + num):
-        output = subprocess.check_output(command(seed)).decode("ascii")
-        # 出力をパース
-        lines = output.split("\n")
-        score = float([line for line in lines if "Score = " in line][0].replace("Score = ", ""))
-        s = int([line for line in lines if "S = " in line][0].replace("S = ", ""))
-        look = int(
-            [line for line in lines if "Number of look() calls = " in line][0].replace("Number of look() calls = ", ""))
-        guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
-            "Number of incorrect guess() calls = ", ""))
-
-        results.append({
-            "seed": seed,
-            "score": score,
-            "S": s,
-            "look": look,
-            "guess": guess})
-
-        # 時間
-        elapsed_time = time.time() - start
-        sec_per_case = elapsed_time / (seed - min_seed + 1)
-        estimated_total = sec_per_case * num
-        remain_time = estimated_total - elapsed_time
-
-        print(str(seed) + (' Elapsed\t%.1f s' % elapsed_time) + ('\tRemain\t%.1f s' % remain_time))
+    pool = mp.Pool(4)
+    callback = pool.map(simulate, range(min_seed, min_seed + num))
 
     total = 0.0
-    for r in results:
+    for r in callback:
         total += r["score"]
     print("Ave.\t{average}".format(average=(total / num)))
 
@@ -55,7 +55,7 @@ def batch(num):
     filename = LOG_DIR + now.strftime("%Y-%m-%d-%H-%M") + "-{min_seed}-{num}".format(min_seed=min_seed,
                                                                                      num=num) + ".json"
     f = open(filename, "w")
-    json.dump(results, f, ensure_ascii=False, indent=4, sort_keys=True, separators=(',', ': '))
+    json.dump(callback, f, ensure_ascii=False, indent=4, sort_keys=True, separators=(',', ': '))
     print(filename)
 
 
