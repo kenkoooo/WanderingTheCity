@@ -1,7 +1,6 @@
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 
@@ -48,38 +47,6 @@ class WanderingTheCity {
     return c == 'X' ? 1 : 0;
   }
 
-  private long encodeCandidate(int i, int j, double score, int tieBreaker) {
-    long ret = (long) ((1 - score) * 100000);
-    ret *= 1000000;
-    ret += tieBreaker;
-    ret *= 1000;
-    ret += i;
-    ret *= 1000;
-    ret += j;
-    if (ret > Long.MAX_VALUE/2) {
-      System.out.println();
-    }
-    return ret;
-  }
-
-  private double decodeScore(long candidate) {
-    int x = (int) (candidate / 1e12);
-    double score = x / 1e5;
-    return 1 - score;
-  }
-
-  private int decodeTieBreaker(long candidate) {
-    return (int) (candidate % 1e12 / 1e6);
-  }
-
-  private int decodeI(long candidate) {
-    return (int) (candidate % 1e6 / 1e3);
-  }
-
-  private int decodeJ(long candidate) {
-    return (int) (candidate % 1e3);
-  }
-
   /**
    * 周囲 4 マスの状況を入れる。
    * 例えば、
@@ -103,8 +70,7 @@ class WanderingTheCity {
   private ArrayList<int[]> lookPath = new ArrayList<>();
 
   // 答えの候補のリスト
-  private long[] candidates;
-  private int candidateSize;
+  private ArrayList<MatchingPlace> candidates = new ArrayList<>();
 
   // 歩幅。2 以上で S の約数でない数字にしたい
   private int step1 = 0, step2 = 0;
@@ -213,13 +179,12 @@ class WanderingTheCity {
       stopMatching = (S / 2);
     }
 
-    double diff = decodeScore(candidates[0]) - decodeScore(candidates[1]);
+    double diff = candidates.get(0).matchingScore - candidates.get(1).matchingScore;
     if (diff < 0.000001 && lookPath.size() < 10 * S) return false;
 
-    int i = decodeI(candidates[0]);
-    int j = decodeJ(candidates[0]);
-    candidates[0] = candidates[candidateSize - 1];
-    candidateSize--;
+    int i = candidates.get(0).i;
+    int j = candidates.get(0).j;
+    candidates.remove(0);
     int response = Actions.guess(new int[]{i, j});
 
     if (response == 1) return true;
@@ -256,13 +221,9 @@ class WanderingTheCity {
     }
     if (random == null) return;
 
-    candidateSize = S * S;
-    candidates = new long[candidateSize];
-    int cur = 0;
     for (int i = 0; i < S; i++) {
       for (int j = 0; j < S; j++) {
-        candidates[cur] = encodeCandidate(i, j, 0.0, random.nextInt(114514));
-        cur++;
+        candidates.add(new MatchingPlace(i, j, random.nextInt(114514)));
       }
     }
 
@@ -297,9 +258,9 @@ class WanderingTheCity {
   }
 
   private void matchAndSort() {
-    for (int l = 0; l < candidateSize; l++) {
-      int i = decodeI(candidates[l]);
-      int j = decodeJ(candidates[l]);
+    for (MatchingPlace place : candidates) {
+      int i = place.i;
+      int j = place.j;
       int okay = 0;
       for (int k = prevMatchingPathSize; k < lookPath.size(); k++) {
         int pi = lookPath.get(k)[0];
@@ -308,23 +269,23 @@ class WanderingTheCity {
         if (matchGivenLook(i + pi, j + pj, pi, pj)) okay++;
       }
 
-      double prevOkay = decodeScore(candidates[l]) * prevMatchingPathSize;
+      double prevOkay = place.matchingScore * prevMatchingPathSize;
       double score = (prevOkay + okay) / lookPath.size();
-      candidates[l] = encodeCandidate(i, j, score, decodeTieBreaker(candidates[l]));
+      place.setScore(score);
     }
     prevMatchingPathSize = lookPath.size();
 
-    Arrays.sort(candidates, 0, candidateSize);
+    Collections.sort(candidates);
 
     // TODO
     double probability = 0.99999;
 
     double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
     cuttingScore /= (lookPath.size() * 4);
-    while (candidateSize > WIDTH) {
-      int tail = candidateSize - 1;
-      if (decodeScore(candidates[tail]) < cuttingScore)
-        candidateSize--;
+    while (candidates.size() > WIDTH) {
+      int tail = candidates.size() - 1;
+      if (candidates.get(tail).matchingScore < cuttingScore)
+        candidates.remove(tail);
       else
         break;
     }
