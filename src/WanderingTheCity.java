@@ -157,10 +157,12 @@ class WanderingTheCity {
     // 最初は歩かずに look
     if (lookCount > 0) {
       // (step1, 0) に行けるなら行く
-      if (viewCount(curI + step1, curJ) <= isEmpty) {
-        if (!walk(step1, 0)) return true;
+      if (viewCount(curI, curJ + step2) <= isEmpty) {
+        if (!walk(0, step2)) return true;
       } else if (viewCount(curI + step1, curJ + step2) <= isEmpty) {
         if (!walk(step1, step2)) return true;
+      } else if (viewCount(curI + 2, curJ) <= isEmpty) {
+        if (!walk(2, 0)) return true;
       } else {
         // 行けなければ歩く場所を決めてもらう
         int[] where = whereToWalk();
@@ -177,31 +179,47 @@ class WanderingTheCity {
       return false;
     }
 
+    if (lookPath.size() < 5) return false;
     matchAndSort();
     if (lookPath.size() > 10) reduceCandidates();
 
-    double diff = candidates.get(0).matchingScore - candidates.get(1).matchingScore;
-    if (diff < 0.000001 && lookPath.size() < 10 * S) {
-      stopGuessing += 100;
-      return false;
+    double diff = candidates.get(0).matchingScore;
+    for (MatchingPlace place : candidates) {
+      if (place.matchingScore < diff) {
+        diff -= place.matchingScore;
+        break;
+      }
     }
-    if (diff < 0.0001 && lookPath.size() < 5 * S) {
-      stopGuessing += 100;
-      return false;
+    if (diff > 0.1) {
+      return guess();
     }
-    if (diff < 0.1 && lookPath.size() < S) {
-      stopGuessing += 5;
-      return false;
+    if (diff > 0.001) {
+      if (lookPath.size() < S) {
+        stopGuessing += S / 5;
+        return false;
+      }
+      return guess();
+    }
+    if (diff > 0.00001) {
+      if (lookPath.size() < S * 4) {
+        stopGuessing += S;
+        return false;
+      }
+      return guess();
     }
 
+    return guess();
+  }
+
+  private boolean guess() {
     int i = candidates.get(0).i;
     int j = candidates.get(0).j;
+    System.out.println(candidates.get(0).matchingScore);
     candidates.remove(0);
     int response = Actions.guess(new int[]{i, j});
 
     if (response == 1) return true;
     stopGuessing = (G / L / 2);
-
     return false;
   }
 
@@ -335,8 +353,8 @@ class WanderingTheCity {
         okay += matchGivenLook(i + pi, j + pj, pi, pj);
       }
 
-      double prevOkay = place.matchingScore * prevMatchingPathSize;
-      double score = (prevOkay + okay) / lookPath.size();
+      double prevOkay = place.matchingScore * prevMatchingPathSize * 4;
+      double score = (prevOkay + okay) / lookPath.size() / 4;
       place.setScore(score);
     }
     prevMatchingPathSize = lookPath.size();
