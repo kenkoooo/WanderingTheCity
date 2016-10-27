@@ -15,9 +15,8 @@ def command(seed, vis=False):
     return ret
 
 
-def batch():
+def batch(num):
     min_seed = 117
-    num = 100
     results = []
 
     start = time.time()
@@ -53,7 +52,8 @@ def batch():
     print("Ave.\t{average}".format(average=(total / num)))
 
     now = datetime.datetime.now()
-    filename = LOG_DIR + now.strftime("%Y-%m-%d-%H-%M-%S") + ".json"
+    filename = LOG_DIR + now.strftime("%Y-%m-%d-%H-%M") + "-{min_seed}-{num}".format(min_seed=min_seed,
+                                                                                     num=num) + ".json"
     f = open(filename, "w")
     json.dump(results, f, ensure_ascii=False, indent=4, sort_keys=True, separators=(',', ': '))
     print(filename)
@@ -65,7 +65,7 @@ def visualize(seed):
 
 def main(a):
     if not a.seed:
-        batch()
+        batch(a.num)
     else:
         visualize(a.seed)
 
@@ -78,6 +78,15 @@ if __name__ == '__main__':
                         const=None,
                         default=None,
                         type=str,
+                        choices=None,
+                        help='Directory path where your taken photo files are located.',
+                        metavar=None)
+    parser.add_argument('-n', '--num',
+                        action='store',
+                        nargs=None,
+                        const=None,
+                        default=100,
+                        type=int,
                         choices=None,
                         help='Directory path where your taken photo files are located.',
                         metavar=None)
