@@ -88,6 +88,9 @@ class WanderingTheCity {
   // 残す候補数
   private final int WIDTH = 1000;
 
+  // カットする時の信頼度
+  private final double CUT_PROB = 0.99999;
+
   // クエリのカウント
   private int walkCount = 0;
   private int lookCount = 0;
@@ -169,15 +172,17 @@ class WanderingTheCity {
 
     if (!viewed[p(curI)][p(curJ)]) look();
 
-    // あまり歩いていないうちはマッチングしない
-    if (lookPath.size() < S) return false;
+    matchCandidates();
+    // あまり歩いていないうちはカットしない
+    if (lookPath.size() <= S * 1.3) return false;
 
-    if (stopMatching > 0) {
-      stopMatching--;
-    } else {
-      matchAndSort();
-      stopMatching = (S / 2);
+    if (stopGuessing > 0) {
+      stopGuessing--;
+      return false;
     }
+
+    Collections.sort(candidates);
+    cutCandidates();
 
     double diff = candidates.get(0).matchingScore - candidates.get(1).matchingScore;
     if (diff < 0.000001 && lookPath.size() < 10 * S) return false;
@@ -188,7 +193,7 @@ class WanderingTheCity {
     int response = Actions.guess(new int[]{i, j});
 
     if (response == 1) return true;
-    stopGuessing = (G / L / 2);
+    stopGuessing = (G / L / S * 10);
 
     return false;
   }
@@ -257,7 +262,19 @@ class WanderingTheCity {
     lookMap[p(curI)][p(curJ)] = bit;
   }
 
-  private void matchAndSort() {
+  private void cutCandidates() {
+    double cuttingScore = (double) leastMatch(lookPath.size() * 4, CUT_PROB);
+    cuttingScore /= (lookPath.size() * 4);
+    while (candidates.size() > WIDTH) {
+      int tail = candidates.size() - 1;
+      if (candidates.get(tail).matchingScore < cuttingScore)
+        candidates.remove(tail);
+      else
+        break;
+    }
+  }
+
+  private void matchCandidates() {
     for (MatchingPlace place : candidates) {
       int i = place.i;
       int j = place.j;
@@ -274,21 +291,6 @@ class WanderingTheCity {
       place.setScore(score);
     }
     prevMatchingPathSize = lookPath.size();
-
-    Collections.sort(candidates);
-
-    // TODO
-    double probability = 0.99999;
-
-    double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
-    cuttingScore /= (lookPath.size() * 4);
-    while (candidates.size() > WIDTH) {
-      int tail = candidates.size() - 1;
-      if (candidates.get(tail).matchingScore < cuttingScore)
-        candidates.remove(tail);
-      else
-        break;
-    }
   }
 
   /**
