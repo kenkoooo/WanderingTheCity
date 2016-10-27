@@ -176,6 +176,7 @@ class WanderingTheCity {
       stopMatching--;
     } else {
       matchAndSort();
+      reduceCandidates();
       stopMatching = (S / 2);
     }
 
@@ -257,6 +258,21 @@ class WanderingTheCity {
     lookMap[p(curI)][p(curJ)] = bit;
   }
 
+  private void reduceCandidates() {
+    // TODO
+    double probability = 0.99999;
+
+    double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
+    cuttingScore /= (lookPath.size() * 4);
+    while (candidates.size() > WIDTH) {
+      int tail = candidates.size() - 1;
+      if (candidates.get(tail).matchingScore < cuttingScore)
+        candidates.remove(tail);
+      else
+        break;
+    }
+  }
+
   private void matchAndSort() {
     for (MatchingPlace place : candidates) {
       int i = place.i;
@@ -276,19 +292,6 @@ class WanderingTheCity {
     prevMatchingPathSize = lookPath.size();
 
     Collections.sort(candidates);
-
-    // TODO
-    double probability = 0.99999;
-
-    double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
-    cuttingScore /= (lookPath.size() * 4);
-    while (candidates.size() > WIDTH) {
-      int tail = candidates.size() - 1;
-      if (candidates.get(tail).matchingScore < cuttingScore)
-        candidates.remove(tail);
-      else
-        break;
-    }
   }
 
   /**
