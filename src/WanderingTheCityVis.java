@@ -65,10 +65,11 @@ public class WanderingTheCityVis {
       }
 
       int numBlack = 0;
+      int repeatI = 0, repeatJ = 0;
       do {
         // 繰り返し周期を選ぶ
-        int repeatI = reps[random.nextInt(repCnt)];
-        int repeatJ = reps[random.nextInt(repCnt)];
+        repeatI = reps[random.nextInt(repCnt)];
+        repeatJ = reps[random.nextInt(repCnt)];
 
         // 小マップを生成する
         for (int i = 0; i < repeatI; i++)
@@ -126,6 +127,7 @@ public class WanderingTheCityVis {
         System.out.println("S = " + S);
         System.out.println("Probability of black building = " + blackProb);
         System.out.println("Starting position: (" + startPos[0] + "," + startPos[1] + ")");
+        System.out.println("Starting Rectangle: (" + repeatI + "x" + repeatJ + ")");
         System.out.println("Changed cells = " + nChange);
         System.out.println("Cost of walking W = " + W);
         System.out.println("Cost of look() L = " + L);

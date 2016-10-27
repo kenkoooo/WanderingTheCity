@@ -1,6 +1,7 @@
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 
@@ -230,17 +231,59 @@ class WanderingTheCity {
 
     // 歩幅を決める
     for (int i = 2; ; i++) {
-      if (gcd(S, i) == 1) {
+      if (WanderTools.gcd(S, i) == 1) {
         if (step1 == 0) {
           step1 = i;
           System.out.println("step1 = " + step1);
-        } else if (gcd(step1, i) == 1) {
+        } else if (WanderTools.gcd(step1, i) == 1) {
           step2 = i;
           System.out.println("step2 = " + step2);
           break;
         }
       }
     }
+
+    estimateSmallRect(map);
+  }
+
+  private void estimateSmallRect(String[] map) {
+    int[] divisors = WanderTools.divisors(map.length);
+    int[][] result = new int[divisors.length * divisors.length][4];
+    int cur = 0;
+    for (int di : divisors)
+      for (int dj : divisors) {
+        int[][] blackCount = new int[di][dj];
+        for (int i = 0; i < S; i++) {
+          for (int j = 0; j < S; j++) {
+            blackCount[i % di][j % dj] += m(map[i].charAt(j));
+          }
+        }
+        int num = S * S / (di * dj);
+        double p = 0;
+        for (int i = 0; i < di; i++) {
+          for (int j = 0; j < dj; j++) {
+            p += (double) Math.min(num - blackCount[i][j], blackCount[i][j]) / num;
+          }
+        }
+        result[cur][0] = (int) (p / di / dj * 10000);
+        result[cur][1] = di * dj;
+        result[cur][2] = di;
+        result[cur][3] = dj;
+        cur++;
+      }
+    Arrays.sort(result, new Comparator<int[]>() {
+      @Override
+      public int compare(int[] o1, int[] o2) {
+        if (o1[0] != o2[0]) return Integer.compare(o1[0], o2[0]);
+        if (o1[1] != o2[1]) return Integer.compare(o1[1], o2[1]);
+        return Integer.compare(o1[2], o2[2]);
+      }
+    });
+    int idx = result[0][0] > 0.2 ? 0 : 1;
+
+    int i = result[idx][2];
+    int j = result[idx][3];
+    System.out.println(i + "x" + j);
   }
 
   private void addLookMap(String[] look) {
@@ -262,7 +305,7 @@ class WanderingTheCity {
     // TODO
     double probability = 0.99999;
 
-    double cuttingScore = (double) leastMatch(lookPath.size() * 4, probability);
+    double cuttingScore = (double) WanderTools.leastMatch(lookPath.size() * 4, probability);
     cuttingScore /= (lookPath.size() * 4);
     while (candidates.size() > WIDTH) {
       int tail = candidates.size() - 1;
@@ -294,33 +337,6 @@ class WanderingTheCity {
     Collections.sort(candidates);
   }
 
-  /**
-   * もし正しい位置にいるならば, p 以上の確率で x 個見たときに少なくとも t 個は当たるだろうという個数を出す
-   *
-   * @param x
-   * @param p
-   * @return
-   */
-  private int leastMatch(int x, double p) {
-    double change = 0.2;
-
-    double sum = 0.0;
-    for (int q = x; q >= 0; q--) {
-      double tmp = 1.0;
-      for (int i = 0; i < q; i++) {
-        tmp *= (x - i);
-        tmp /= (i + 1);
-        tmp *= (1.0 - change);
-      }
-      for (int i = 0; i < x - q; i++) {
-        tmp *= change;
-      }
-      sum += tmp;
-      if (sum >= p) return q;
-    }
-    return 0;
-  }
-
   private boolean matchGivenLook(int gi, int gj, int li, int lj) {
     return givenMap[p(gi)][p(gj)] == lookMap[p(li)][p(lj)];
   }
@@ -349,7 +365,50 @@ class WanderingTheCity {
       }
     return cnt;
   }
-  private long gcd(long a, long b) {
+
+}
+
+class WanderTools {
+  static long gcd(long a, long b) {
     return b == 0 ? a : gcd(b, a % b);
   }
+  static int[] divisors(int S) {
+    ArrayList<Integer> list = new ArrayList<>();
+    for (int i = 2; i <= S; i++) {
+      if (S % i == 0) list.add(i);
+    }
+    int[] divisors = new int[list.size()];
+    for (int i = 0; i < list.size(); i++) {
+      divisors[i] = list.get(i);
+    }
+    return divisors;
+  }
+
+  /**
+   * もし正しい位置にいるならば, p 以上の確率で x 個見たときに少なくとも t 個は当たるだろうという個数を出す
+   *
+   * @param x 見た数
+   * @param p 基準となる確率
+   * @return 基準となる確率を超える当たり数
+   */
+  static int leastMatch(int x, double p) {
+    double change = 0.2;
+
+    double sum = 0.0;
+    for (int q = x; q >= 0; q--) {
+      double tmp = 1.0;
+      for (int i = 0; i < q; i++) {
+        tmp *= (x - i);
+        tmp /= (i + 1);
+        tmp *= (1.0 - change);
+      }
+      for (int i = 0; i < x - q; i++) {
+        tmp *= change;
+      }
+      sum += tmp;
+      if (sum >= p) return q;
+    }
+    return 0;
+  }
+
 }
