@@ -29,15 +29,19 @@ def simulate(seed):
             [line for line in lines if "Number of look() calls = " in line][0].replace("Number of look() calls = ", ""))
         guess = int([line for line in lines if "Number of incorrect guess() calls = " in line][0].replace(
             "Number of incorrect guess() calls = ", ""))
+        g_cost = int([line for line in lines if "Cost of guess() G = " in line][0].replace(
+            "Cost of guess() G = ", ""))
 
         result = {
             "seed": seed,
             "score": score,
             "S": s,
             "look": look,
-            "guess": guess}
+            "guess": guess,
+            "g_cost": g_cost}
         exec_time = time.time() - start
         print("{seed}:\t{t} s".format(seed=seed, t=("%.2f" % exec_time)))
+
     except TimeoutExpired:
         print("TLE in {seed}".format(seed=seed))
         return {}
@@ -51,8 +55,8 @@ def batch(num):
 
     total = 0.0
     for r in callback:
-        total += r["score"]
-    print("Ave.\t{average}".format(average=(total / num)))
+        total += r["score"] / r["g_cost"]
+    print("Ave.\t{average}".format(average=("%.5f" % (total / num))))
 
     now = datetime.datetime.now()
     filename = LOG_DIR + now.strftime("%Y-%m-%d-%H-%M") + "-{min_seed}-{num}".format(min_seed=min_seed,

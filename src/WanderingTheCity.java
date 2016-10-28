@@ -157,6 +157,10 @@ class WanderingTheCity {
     // 最初は歩かずに look
     if (lookCount > 0) {
       // (step1, 0) に行けるなら行く
+
+      step1 = 2;
+      step2 = 2;
+
       if (viewCount(curI, curJ + step2) <= isEmpty) {
         if (!walk(0, step2)) return true;
       } else if (viewCount(curI + step1, curJ + step2) <= isEmpty) {

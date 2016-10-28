@@ -3,6 +3,7 @@ import subprocess
 import time
 import argparse
 import datetime
+import numpy
 
 
 def main(a):
@@ -13,22 +14,22 @@ def main(a):
     diff = {}
 
     for r in after:
-        diff[r["seed"]] = {"after": r["score"]}
+        diff[r["seed"]] = {"after": r["score"] / r["g_cost"]}
 
     for r in before:
-        diff[r["seed"]]["before"] = r["score"]
+        diff[r["seed"]]["before"] = r["score"] / r["g_cost"]
 
-    total = 0
     for seed, d in diff.items():
-        total += d["after"]
         ds = d["after"] - d["before"]
         print("{seed}:\t{before}\t->\t{after}\t{diff}".format(
             seed=seed,
-            before=("%.2e" % d["before"]),
-            after=("%.2e" % d["after"]),
-            diff=ds
+            before=("%.3f" % d["before"]),
+            after=("%.3f" % d["after"]),
+            diff=("%.3f" % ds),
         ))
-    print(total / len(after))
+    average_after = numpy.average([d["after"] for d in diff.values()])
+    average_before = numpy.average([d["before"] for d in diff.values()])
+    print("Ave.\t{before}\t->\t{after}".format(after=("%.5f" % average_after), before=("%.5f" % average_before)))
 
 
 if __name__ == '__main__':
