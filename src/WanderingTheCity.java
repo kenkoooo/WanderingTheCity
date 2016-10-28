@@ -93,8 +93,8 @@ class WanderingTheCity {
   private int walkCount = 0;
   private int lookCount = 0;
 
-  // 1 直進 / 0 降下 / -1 後退 / 2 降下
-  private int mode = 1;
+  // 進行方向
+  private boolean horizontal = true;
 
   /**
    * 呼び出されるメソッド
@@ -160,33 +160,14 @@ class WanderingTheCity {
     // 最初は歩かずに look
     if (lookCount > 0) {
       int stepI, stepJ;
-      if (width >= height) {
-        stepJ = 2;
+      if (horizontal) {
         stepI = 0;
-        if (mode == 1) {
-          int cur = p(curJ) % width;
-          if (cur / width != (cur + stepJ + 1) / width) {
-            mode = 0;
-            stepI = 2;
-            stepJ = 0;
-          }
-        } else if (mode == 0) {
-          mode = -1;
-          stepJ = -stepJ;
-        } else if (mode == -1) {
-          stepJ = -stepJ;
-          int cur = p(curJ) % width;
-          if (cur + stepJ < 0) {
-            mode = 2;
-            stepI = 2;
-            stepJ = 0;
-          }
-        } else {
-          mode = 1;
-        }
+        stepJ = 2;
+        horizontal = false;
       } else {
         stepI = 2;
         stepJ = 0;
+        horizontal = true;
       }
 
       if (viewCount(curI + stepI, curJ + stepJ) <= isEmpty) {
