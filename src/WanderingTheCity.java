@@ -93,8 +93,12 @@ class WanderingTheCity {
   private int walkCount = 0;
   private int lookCount = 0;
 
-  // 進行方向
-  private boolean horizontal = true;
+  // 方向固定
+  private int directionContinue = 0;
+
+  // パターン殺すマン
+  private SecureRandom random = null;
+  private int stepI, stepJ;
 
   /**
    * 呼び出されるメソッド
@@ -159,15 +163,12 @@ class WanderingTheCity {
   private boolean mainProcess() {
     // 最初は歩かずに look
     if (lookCount > 0) {
-      int stepI, stepJ;
-      if (horizontal) {
-        stepI = 0;
-        stepJ = 2;
-        horizontal = false;
+      if (directionContinue > 0) {
+        directionContinue--;
       } else {
-        stepI = 2;
-        stepJ = 0;
-        horizontal = true;
+        stepI = (random.nextInt(3) - 1) * 2;
+        stepJ = (random.nextInt(3) - 1) * 2;
+        directionContinue += 5;
       }
 
       if (viewCount(curI + stepI, curJ + stepJ) <= isEmpty) {
@@ -255,7 +256,7 @@ class WanderingTheCity {
 
     viewed = new boolean[S][S];
 
-    SecureRandom random = null;
+    random = null;
     try {
       random = SecureRandom.getInstance("SHA1PRNG");
       random.setSeed(114514);
