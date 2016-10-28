@@ -74,7 +74,7 @@ class WanderingTheCity {
   private ArrayList<MatchingPlace> candidates = new ArrayList<>();
 
   // 歩幅。2 以上で S の約数でない数字にしたい
-  private int step1 = 0, step2 = 0;
+  private int height = 0, width = 0;
 
   // あと何回 guess クエリを控えるか
   private int stopGuessing = 0;
@@ -92,6 +92,9 @@ class WanderingTheCity {
   // クエリのカウント
   private int walkCount = 0;
   private int lookCount = 0;
+
+  // 1 直進 / 0 降下 / -1 後退 / 2 降下
+  private int mode = 1;
 
   /**
    * 呼び出されるメソッド
@@ -121,7 +124,7 @@ class WanderingTheCity {
 
     ArrayList<int[]> list = new ArrayList<>();
     while (isEmpty < 9) {
-      for (int dist = step1 * 2; dist <= S; dist += step1) {
+      for (int dist = 1; dist <= S; dist++) {
         int si = curI;
         int sj = curJ + dist;
         for (int edge = 0; edge < 4; edge++)
@@ -156,17 +159,42 @@ class WanderingTheCity {
   private boolean mainProcess() {
     // 最初は歩かずに look
     if (lookCount > 0) {
-      // (step1, 0) に行けるなら行く
+      int stepI, stepJ;
+      if (width >= height) {
+        stepJ = 2;
+        stepI = 0;
+        if (mode == 1) {
+          int cur = p(curJ) % width;
+          if (cur / width != (cur + stepJ + 1) / width) {
+            mode = 0;
+            stepI = 2;
+            stepJ = 0;
+          }
+        } else if (mode == 0) {
+          mode = -1;
+          stepJ = -stepJ;
+        } else if (mode == -1) {
+          stepJ = -stepJ;
+          int cur = p(curJ) % width;
+          if (cur + stepJ < 0) {
+            mode = 2;
+            stepI = 2;
+            stepJ = 0;
+          }
+        } else {
+          mode = 1;
+        }
+      } else {
+        stepI = 2;
+        stepJ = 0;
+      }
 
-      step1 = 2;
-      step2 = 2;
-
-      if (viewCount(curI, curJ + step2) <= isEmpty) {
-        if (!walk(0, step2)) return true;
-      } else if (viewCount(curI + step1, curJ + step2) <= isEmpty) {
-        if (!walk(step1, step2)) return true;
+      if (viewCount(curI + stepI, curJ + stepJ) <= isEmpty) {
+        if (!walk(stepI, stepJ)) return true;
       } else if (viewCount(curI + 2, curJ) <= isEmpty) {
         if (!walk(2, 0)) return true;
+      } else if (viewCount(curI + 2, curJ + 2) <= isEmpty) {
+        if (!walk(2, 2)) return true;
       } else {
         // 行けなければ歩く場所を決めてもらう
         int[] where = whereToWalk();
@@ -268,8 +296,8 @@ class WanderingTheCity {
   private void estimateSmallRect(String[] map) {
     int[] divisors = WanderTools.divisors(map.length);
     if (divisors.length == 1) {
-      step1 = 2;
-      step2 = 2;
+      height = map.length;
+      width = map.length;
       return;
     }
     int[][] result = new int[divisors.length * divisors.length - 1][4];
@@ -307,11 +335,11 @@ class WanderingTheCity {
 
     // TODO 0.2 以上は一致してろ
     if (result[0][0] > 1e4 * 0.2) {
-      step1 = 2;
-      step2 = 2;
+      height = map.length;
+      width = map.length;
     } else {
-      step1 = result[0][2] == map.length ? 2 : result[0][2];
-      step2 = result[0][3] == map.length ? 2 : result[0][3];
+      height = result[0][2];
+      width = result[0][3];
     }
   }
 
