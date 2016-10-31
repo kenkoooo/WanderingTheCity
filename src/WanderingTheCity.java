@@ -91,10 +91,15 @@ class WanderingTheCity {
 
   // クエリのカウント
   private int walkCount = 0;
-  private int lookCount = 0;
 
   // 進行方向
   private boolean horizontal = true;
+
+  // 他とは違うマス [i, j, cnt]
+  ArrayList<int[]> irregulars = new ArrayList<>();
+
+  //
+  private double prevDiff = 0.0;
 
   /**
    * 呼び出されるメソッド
@@ -158,7 +163,15 @@ class WanderingTheCity {
 
   private boolean mainProcess() {
     // 最初は歩かずに look
-    if (lookCount > 0) {
+    boolean walkDone = false;
+    if (lookPath.size() > width * height) {
+      int[] dest = getNearestIrregulars();
+      if (dest.length > 0) {
+        if (!walk(dest[0] - curI, dest[1] - curJ)) return true;
+        walkDone = true;
+      }
+    }
+    if (!walkDone && lookPath.size() > 0) {
       int stepI, stepJ;
       if (horizontal) {
         stepI = 0;
@@ -194,46 +207,87 @@ class WanderingTheCity {
 
     if (lookPath.size() < 5) return false;
     matchAndSort();
-    if (lookPath.size() > 10) reduceCandidates();
+    if (lookPath.size() > 100) reduceCandidates();
 
-    double diff = candidates.get(0).matchingScore;
-    for (MatchingPlace place : candidates) {
-      if (place.matchingScore < diff) {
-        diff -= place.matchingScore;
-        break;
-      }
-    }
-    if (diff > 0.1) {
-      return guess();
-    }
-    if (diff > 0.001) {
-      if (lookPath.size() < S) {
-        stopGuessing += S / 5;
+    double diff = candidates.get(0).matchingScore - candidates.get(1).matchingScore;
+
+    if (diff > 0.003 && lookPath.size() > (S / height) * (S / width)) {
+      if (guess()) {
+        return true;
+      } else {
+        stopGuessing += G / L / 5;
         return false;
       }
-      return guess();
-    }
-    if (diff > 0.00001) {
-      if (lookPath.size() < S * 4) {
-        stopGuessing += S;
-        return false;
-      }
-      return guess();
     }
 
-    return guess();
+    if (lookPath.size() > S * 2) {
+      if (guess()) {
+        return true;
+      } else {
+        stopGuessing += G / L / 5;
+        return false;
+      }
+    }
+
+    if (Math.abs(prevDiff - diff) > (1.0 / Math.sqrt(lookPath.size())) || lookPath.size() < (S / height) * (S / width) || (diff < 0.001 && lookPath.size() < S)) {
+      stopGuessing += G / L / 5;
+      prevDiff = diff;
+      return false;
+    }
+    if (guess()) {
+      return true;
+    } else {
+      stopGuessing += G / L / 5;
+      return false;
+    }
   }
 
   private boolean guess() {
     int i = candidates.get(0).i;
     int j = candidates.get(0).j;
-    System.out.println(candidates.get(0).matchingScore);
+    System.out.println("score =\t" + candidates.get(0).matchingScore);
+    System.out.println("diff =\t" + (candidates.get(0).matchingScore - candidates.get(1).matchingScore));
+    System.out.println("look =\t" + lookPath.size());
+
     candidates.remove(0);
     int response = Actions.guess(new int[]{i, j});
 
     if (response == 1) return true;
     stopGuessing = (G / L / 2);
     return false;
+  }
+
+  private int[] getNearestIrregulars() {
+    for (int z = 0; z < 10; z++) {
+      int max = 0;
+      int x = -1;
+      int dist = S * S;
+
+      int ci = candidates.get(z).i;
+      int cj = candidates.get(z).j;
+
+      for (int y = 0; y < irregulars.size(); y++) {
+        int i = p(irregulars.get(y)[0] + ci);
+        int j = p(irregulars.get(y)[1] + cj);
+        if (viewCount(i, j) > isEmpty) continue;
+        if (irregulars.get(y)[2] < max) break;
+
+        max = irregulars.get(y)[2];
+        int di = Math.abs(curI - i);
+        int dj = Math.abs(curJ - j);
+        int d = Math.min(di, S - di) + Math.min(dj, S - dj);
+        if (dist > d) {
+          dist = d;
+          x = y;
+        }
+      }
+      if (x >= 0) {
+        int i = p(irregulars.get(x)[0] + ci);
+        int j = p(irregulars.get(x)[1] + cj);
+        return new int[]{i, j};
+      }
+    }
+    return new int[0];
   }
 
   private void init(String[] map) {
@@ -270,8 +324,9 @@ class WanderingTheCity {
       }
     }
 
-    // 歩幅を決める
+    // 小さい長方形を
     estimateSmallRect(map);
+    initIrregulars(map);
   }
 
   private void estimateSmallRect(String[] map) {
@@ -324,6 +379,45 @@ class WanderingTheCity {
     }
   }
 
+  private void initIrregulars(String[] map) {
+    double[][] black = new double[height][width];
+    for (int i = 0; i < S; i++) {
+      for (int j = 0; j < S; j++) {
+        black[i % height][j % width] += m(map[i].charAt(j));
+      }
+    }
+
+    for (int i = 0; i < height; i++) {
+      for (int j = 0; j < width; j++) {
+        black[i][j] /= S * S / (height * width);
+      }
+    }
+
+    for (int i = 0; i < S; i++) {
+      for (int j = 0; j < S; j++) {
+        int cnt = 0;
+        for (int ai = -1; ai <= 1; ai++) {
+          for (int aj = -1; aj <= 1; aj++) {
+            int xi = p(i + ai);
+            int xj = p(j + aj);
+            int m = m(map[xi].charAt(xj));
+            if (black[xi % height][xj % width] < 0.5 && m == 1) cnt++;
+            else if (black[xi % height][xj % width] > 0.5 && m == 0) cnt++;
+          }
+        }
+        if (cnt > 0) {
+          irregulars.add(new int[]{i, j, cnt});
+        }
+      }
+    }
+    Collections.sort(irregulars, new Comparator<int[]>() {
+      @Override
+      public int compare(int[] o1, int[] o2) {
+        return -Integer.compare(o1[2], o2[2]);
+      }
+    });
+  }
+
   private void addLookMap(String[] look) {
     if (look[0].length() == 0) {
       System.out.println();
@@ -340,16 +434,11 @@ class WanderingTheCity {
   }
 
   private void reduceCandidates() {
-    // TODO
-    double probability = 0.99999;
-
-    double cuttingScore = (double) WanderTools.leastMatch(lookPath.size() * 4, probability);
-    cuttingScore /= (lookPath.size() * 4);
     while (candidates.size() > WIDTH) {
       int tail = candidates.size() - 1;
-      if (candidates.get(tail).matchingScore < cuttingScore)
+      if (candidates.get(tail).matchingScore < 0.65) {
         candidates.remove(tail);
-      else
+      } else
         break;
     }
   }
@@ -380,6 +469,12 @@ class WanderingTheCity {
   }
 
   private boolean walk(int di, int dj) {
+    if (di > S / 2) {
+      di = S - di;
+    }
+    if (dj > S / 2) {
+      dj = S - dj;
+    }
     walkCount++;
     int ret = Actions.walk(new int[]{di, dj});
     curI = p(curI + di);
@@ -388,7 +483,6 @@ class WanderingTheCity {
   }
 
   private void look() {
-    lookCount++;
     addLookMap(Actions.look());
     lookPath.add(new int[]{curI, curJ});
 
