@@ -96,7 +96,7 @@ class WanderingTheCity {
   private boolean horizontal = true;
 
   // 他とは違うマス [i, j, cnt]
-  ArrayList<int[]> irregulars = new ArrayList<>();
+  private ArrayList<int[]> irregulars = new ArrayList<>();
 
   //
   private double prevDiff = 0.0;
@@ -164,7 +164,7 @@ class WanderingTheCity {
   private boolean mainProcess() {
     // 最初は歩かずに look
     boolean walkDone = false;
-    if (lookPath.size() > width * height) {
+    if (lookPath.size() > Math.min(width * height / 4, S)) {
       int[] dest = getNearestIrregulars();
       if (dest.length > 0) {
         if (!walk(dest[0] - curI, dest[1] - curJ)) return true;
@@ -228,8 +228,9 @@ class WanderingTheCity {
         return false;
       }
     }
-
-    if (Math.abs(prevDiff - diff) > (1.0 / Math.sqrt(lookPath.size())) || lookPath.size() < (S / height) * (S / width) || (diff < 0.001 && lookPath.size() < S)) {
+    if (Math.abs(prevDiff - diff) > (1.0 / Math.sqrt(lookPath.size()))
+      || lookPath.size() < (S / height) * (S / width)
+      || (diff < 0.001 && lookPath.size() < S)) {
       stopGuessing += G / L / 5;
       prevDiff = diff;
       return false;
@@ -354,7 +355,7 @@ class WanderingTheCity {
             p += (double) Math.min(num - blackCount[i][j], blackCount[i][j]) / num;
           }
         }
-        result[cur][0] = (int) (p / di / dj * 1e4);
+        result[cur][0] = (int) (p / di / dj * 1e6);
         result[cur][1] = di * dj;
         result[cur][2] = di;
         result[cur][3] = dj;
@@ -369,13 +370,18 @@ class WanderingTheCity {
       }
     });
 
-    // TODO 0.2 以上は一致してろ
-    if (result[0][0] > 1e4 * 0.2) {
+    // TODO 0.8 以上は一致してろ
+    if (result[0][0] > 1e6 * 0.2) {
       height = map.length;
       width = map.length;
     } else {
-      height = result[0][2];
-      width = result[0][3];
+      int p = 0;
+      while (p < result.length - 1
+        && result[p + 1][0] < result[p][0] * 1.1
+        && result[p + 1][1] < result[p][1])
+        p++;
+      height = result[p][2];
+      width = result[p][3];
     }
   }
 
